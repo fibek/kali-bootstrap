@@ -1,0 +1,57 @@
+# Meta tools
+# kali-linux-core
+# kali-linux-headless
+kali-linux-wsl
+
+# # Development tools
+# build-essential
+git
+# python3
+# python3-pip
+# golang
+# nodejs
+# npm
+
+# # Network tools
+nmap
+wireshark
+tcpdump
+netcat
+netdiscover
+masscan
+enum4linux
+
+
+# # Web tools
+burpsuite
+sqlmap
+# nikto
+gobuster
+# dirb
+
+# # Password tools
+hashcat
+# john
+# hydra
+
+# # Wireless tools
+# aircrack-ng
+# reaver
+# wifite
+
+# # Forensics tools
+# binwalk
+# foremost
+# volatility
+
+# # Exploitation tools
+metasploit-framework
+exploitdb
+searchsploit
+
+# # System tools
+# htop
+# neofetch
+tmux
+# vim
+# zsh 

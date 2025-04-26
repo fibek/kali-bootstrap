@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Check if running as root
+if [ "$EUID" -ne 0 ]; then
+    echo "Please run as root"
+    exit 1
+fi
+
+# Backup the original file
+XSTARTUP_FILE="/usr/lib/win-kex/xstartup"
+BACKUP_FILE="${XSTARTUP_FILE}.backup"
+
+if [ ! -f "$BACKUP_FILE" ]; then
+    cp "$XSTARTUP_FILE" "$BACKUP_FILE"
+    echo "Created backup of original xstartup file"
+fi
+
+# Create the new xstartup content
+cat > "$XSTARTUP_FILE" << 'EOL'
+#!/bin/sh
+
+#############################
+##          All            ##
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+export SHELL=/bin/bash
+export XDG_SESSION_TYPE=x11
+export GDK_BACKEND=x11
+
+# Load Xresources if available
+[ -r $HOME/.Xresources ] && xrdb $HOME/.Xresources
+
+# Start dwm
+exec dwm
+EOL
+
+# Make the file executable
+chmod +x "$XSTARTUP_FILE"
+
+echo "Win-KeX xstartup file has been configured successfully" 

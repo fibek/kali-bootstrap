@@ -1,0 +1,49 @@
+$include /etc/inputrc
+set editing-mode vi
+$if mode=vi
+
+set show-mode-in-prompt on
+set vi-ins-mode-string \1\e[6 q\2
+set vi-cmd-mode-string \1\e[2 q\2
+
+set keymap vi-command
+# these are for vi-command mode
+Control-l: clear-screen
+Control-a: beginning-of-line
+
+set keymap vi-insert
+# these are for vi-insert mode
+Control-l: clear-screen
+Control-a: beginning-of-line
+Control-b: backward-char
+Control-f: forward-char
+Control-p: previous-history
+Control-n: next-history
+Control-a: beginning-of-line
+Control-e: end-of-line
+Control-h: backward-delete-char
+Control-w: backward-kill-word
+Control-k: kill-line
+Control-u: unix-line-discard
+
+$endif
+
+# Color files by types
+set colored-stats On
+# Append char to indicate type
+set visible-stats On
+# Mark symlinked directories
+set mark-symlinked-directories On
+# Color the common prefix
+set colored-completion-prefix On
+# Color the common prefix in menu-complete
+set menu-complete-display-prefix On
+
+# Intelligent completion
+set skip-completed-text on
+set completion-ignore-case on
+
+# Show all completions as soon as I press tab, even if there's more than one
+set show-all-if-ambiguous on
+# Show extra file information when completing, like `ls -F` does
+set visible-stats on 
