@@ -16,10 +16,15 @@ git
 nmap
 wireshark
 tcpdump
-netcat
+# netcat
 netdiscover
+socat
 masscan
 enum4linux
+python3-impacket
+bloodhound.py
+crackmapexec
+smbclient
 
 
 # # Web tools
@@ -47,7 +52,7 @@ hashcat
 # # Exploitation tools
 metasploit-framework
 exploitdb
-searchsploit
+# searchsploit - Now part of exploitdb
 
 # # System tools
 # htop

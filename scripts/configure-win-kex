@@ -30,8 +30,14 @@ export GDK_BACKEND=x11
 # Load Xresources if available
 [ -r $HOME/.Xresources ] && xrdb $HOME/.Xresources
 
-# Start dwm
-exec dwm
+# Source the user's .xprofile to load settings and start the window manager
+if [ -f "$HOME/.xprofile" ]; then
+    . "$HOME/.xprofile"
+else
+    # Fallback in case .xprofile doesn't exist or fails
+    echo "~/.xprofile not found or failed, attempting default dwm..." >&2
+    exec dwm
+fi
 EOL
 
 # Make the file executable

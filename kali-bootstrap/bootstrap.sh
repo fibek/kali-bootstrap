@@ -61,7 +61,23 @@ apt install -y git build-essential libx11-dev libxft-dev libxinerama-dev \
     libxcb-icccm4-dev libxcb-keysyms1-dev libxcb-randr0-dev libxcb-xinerama0-dev \
     libxcb-xtest0-dev libxcb-xkb-dev libxkbcommon-dev libxkbcommon-x11-dev \
     libxcb-shape0-dev libxcb-xfixes0-dev libxcb-render-util0-dev \
-    xcape xdotool x11-xkb-utils golang-go
+    xcape xdotool x11-xkb-utils golang-go libharfbuzz-dev
+
+# Install packages from packages.txt
+PACKAGES_FILE="$HOME_DIR/dev/kali-bootstrap/packages.txt" # Assuming script is run from workspace root
+if [ -f "$PACKAGES_FILE" ]; then
+    print_status "Installing packages from packages.txt..."
+    # Read uncommented lines, trim whitespace, filter empty lines
+    PACKAGES_TO_INSTALL=$(grep -v '^#' "$PACKAGES_FILE" | sed 's/#.*//' | sed 's/^[ \t]*//;s/[ \t]*$//' | grep -v '^$')
+    if [ -n "$PACKAGES_TO_INSTALL" ]; then
+        # Attempt to install, allow failures for individual packages
+        sudo apt install -y $PACKAGES_TO_INSTALL || print_warning "Some packages from packages.txt might have failed to install. Please check logs."
+    else
+        print_warning "No uncommented packages found in packages.txt"
+    fi
+else
+    print_warning "packages.txt not found. Skipping custom package installation."
+fi
 
 # Set up Go environment
 print_status "Setting up Go environment..."
@@ -79,14 +95,35 @@ cd "$HOME_DIR/.config"
 rm -rf voidrice
 git clone https://github.com/LukeSmithxyz/voidrice.git
 
-# Install dwm (Luke's version)
-print_status "Installing dwm (LukeSmith's version)..."
-cd "$HOME_DIR/.config"
-rm -rf dwm
-# Clone Luke's patched dwm
-GIT_SSL_NO_VERIFY=1 git clone https://github.com/LukeSmithxyz/dwm.git
-cd dwm
-sudo make clean install
+# --- Optional DWM Installation ---
+install_dwm=false
+for arg in "$@"; do
+    case $arg in
+        --dwm)
+        install_dwm=true
+        shift # Remove --dwm from processing
+        ;;
+        *)
+        # Unknown option
+        ;;
+    esac
+done
+
+if [ "$install_dwm" = true ] ; then
+    print_status "--dwm flag detected. Installing dwm (LukeSmith's version)..."
+    cd "$HOME_DIR/.config"
+    rm -rf dwm
+    # Clone Luke's patched dwm
+    GIT_SSL_NO_VERIFY=1 git clone https://github.com/LukeSmithxyz/dwm.git
+    if [ -d "dwm" ]; then
+        cd dwm
+        sudo make clean install || print_error "Failed to build/install dwm"
+    else
+        print_error "Failed to clone LukeSmith's dwm repository."
+    fi
+else
+    print_status "Skipping DWM installation (no --dwm flag)."
+fi
 
 # Install st (Luke's version)
 print_status "Installing st (LukeSmith's version)..."
@@ -94,15 +131,22 @@ cd "$HOME_DIR/.config"
 rm -rf st
 GIT_SSL_NO_VERIFY=1 git clone https://github.com/LukeSmithxyz/st.git
 cd st
-sudo make clean install
+sudo make clean install || print_error "Failed to build/install st"
 
-# Install lf (Luke's version)
-print_status "Installing lf (LukeSmith's version)..."
+# Install lf (Official Repo + Luke's Config)
+print_status "Installing lf (Official Repo)..."
 cd "$HOME_DIR/.config"
-rm -rf lf
-GIT_SSL_NO_VERIFY=1 git clone https://github.com/LukeSmithxyz/lf.git
+rm -rf lf # Remove potential old clone
+# Clone the official lf repository
+git clone https://github.com/gokcehan/lf.git
 cd lf
-sudo make clean install
+go build || print_error "Failed to build lf"
+if [ -f ./lf ]; then
+    sudo cp lf /usr/local/bin/
+    print_status "lf binary installed to /usr/local/bin/"
+else
+    print_error "lf build failed, binary not found."
+fi
 
 # Set up Xresources (Gruvbox dark)
 print_status "Setting up Xresources (Gruvbox dark)..."
@@ -215,7 +259,13 @@ fi
 print_status "Setting up configurations..."
 if [ -d "$HOME_DIR/.config/voidrice/.config/lf" ]; then
     rm -rf "$HOME_DIR/.config/lf"  # Remove existing directory first
-    ln -sf "$HOME_DIR/.config/voidrice/.config/lf" "$HOME_DIR/.config/"
+    ln -sf "$HOME_DIR/.config/voidrice/.config/lf" "$HOME_DIR/.config/" || print_error "Failed to link lf config from voidrice."
+    print_status "Linked lf configuration from voidrice."
+else
+    print_warning "Luke's lf configuration not found in voidrice clone. Using default lf behavior."
+    # If no voidrice config, ensure the lf source dir we built from exists for reference
+    # The binary is already installed, so this dir isn't strictly needed at runtime.
+    # safe_mkdir "$HOME_DIR/.config/lf" # Re-create if removed above, or ensure it exists
 fi
 
 # Add remaps to X startup
@@ -237,8 +287,58 @@ if [ -f "$HOME_DIR/.zshrc" ] && ! grep -q "GOPATH" "$HOME_DIR/.zshrc"; then
     echo 'export PATH=$PATH:/usr/lib/go/bin:$GOPATH/bin' >> "$HOME_DIR/.zshrc"
 fi
 
+# Verify dwm installation
+if ! command -v dwm >/dev/null 2>&1 || ! [ -x "$(command -v dwm)" ]; then
+    print_error "dwm installation failed or binary not found in PATH."
+else
+    print_status "dwm binary found at: $(command -v dwm)"
+fi
+
+# Verify st installation
+if ! command -v st >/dev/null 2>&1 || ! [ -x "$(command -v st)" ]; then
+    print_error "st installation failed or binary not found in PATH."
+else
+    print_status "st binary found at: $(command -v st)"
+fi
+
+# Verify lf installation
+if ! command -v lf >/dev/null 2>&1 || ! [ -x "$(command -v lf)" ]; then
+    print_error "lf installation failed or binary not found in PATH."
+else
+    print_status "lf binary found at: $(command -v lf)"
+fi
+
+# Add Xresources loading and dwm execution to .xprofile
+print_status "Updating .xprofile for Xresources and dwm..."
+touch "$HOME_DIR/.xprofile"
+if ! grep -q "xrdb.*Xresources" "$HOME_DIR/.xprofile"; then
+    echo "[ -f ~/.Xresources ] && xrdb ~/.Xresources" >> "$HOME_DIR/.xprofile"
+fi
+# Ensure remaps runs before dwm
+if grep -q "remaps &" "$HOME_DIR/.xprofile" && ! grep -q "exec dwm" "$HOME_DIR/.xprofile"; then
+    # If remaps exists but exec dwm doesn't, add exec dwm after remaps
+    sed -i '/remaps &/a exec dwm' "$HOME_DIR/.xprofile"
+elif ! grep -q "exec dwm" "$HOME_DIR/.xprofile"; then
+    # If neither exists, add both (remaps first)
+    echo "remaps &" >> "$HOME_DIR/.xprofile"
+    echo "exec dwm" >> "$HOME_DIR/.xprofile"
+fi
+
 # Fix permissions
 chown -R ${REAL_USER}:${REAL_USER} "$HOME_DIR/.config" "$HOME_DIR/.local"
+
+# Configure Win-KeX startup
+if [ "$install_dwm" = true ] ; then
+    print_status "Configuring Win-KeX xstartup for DWM..."
+    CONFIGURE_KEX_SCRIPT="$HOME_DIR/dev/kali-bootstrap/scripts/configure-win-kex" # Adjust path if needed
+    if [ -f "$CONFIGURE_KEX_SCRIPT" ]; then
+        sudo "$CONFIGURE_KEX_SCRIPT"
+    else
+        print_error "configure-win-kex script not found!"
+    fi
+else
+    print_status "Skipping Win-KeX configuration for DWM (no --dwm flag)."
+fi
 
 print_status "Installation complete!"
 print_warning "Please restart your WSL instance to apply all changes."
